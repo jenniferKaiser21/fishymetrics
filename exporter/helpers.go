@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Comcast Cable Communications Management, LLC
+ * Copyright 2025 Comcast Cable Communications Management, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"regexp"
 	"time"
+	"strings"
 
 	"github.com/comcast/fishymetrics/common"
 	"github.com/comcast/fishymetrics/oem"
@@ -573,3 +574,66 @@ func GetFirmwareInventoryURL(sysResp oem.System) string {
 		sysResp.Oem.Hp.LinksLower.FirmwareInventory.URL,
 	)
 }
+
+// SSL Certificate Helper Functions and Mappings
+
+// SuperMicro Mapping of Month to Number
+var monthMap = map[string]string{
+	"Jan": "01",
+	"Feb": "02",
+	"Mar": "03",
+	"Apr": "04",
+	"May": "05",
+	"Jun": "06",
+	"Jul": "07",
+	"Aug": "08",
+	"Sep": "09",
+	"Oct": "10",
+	"Nov": "11",
+	"Dec": "12",
+}
+
+// Conversion of date format to ISO 8601 format with just the date
+// Example: `Mar 21 00:00:00 2018 GMT` to `2018-03-21` SuperMicro
+// Example: `2018-03-21T00:00:00Z` to `2018-03-21` HPE
+// Example: `2035-1-7T06:21:00+00:00` to `2035-01-07` Dell
+
+func convertDate(date string) string {
+	// If the string is already in the correct format, cut off the time+ and return
+	containsMonth := false
+	for month := range monthMap {
+		if strings.Contains(date, month) {
+			containsMonth = true
+		}
+	}
+	if !containsMonth {
+		dateComponents := strings.Split(date, "T")
+		d1 := dateComponents[0]
+		d1Components := strings.Split(d1, "-")
+		// split the date to check for correct number of integers in YYYY MM DD
+		year := d1Components[0]
+		month := d1Components[1]
+		day := d1Components[2]
+		// ensure month and day are 2 digits each by prepending 0 if necessary
+		if len(month) == 1 {
+			month = "0" + month
+		}
+		if len(day) == 1 {
+			day = "0" + day
+		}
+		// Return the date YYYYY-MM-DD
+		return year + "-" + month + "-" + day
+
+	} else {
+		// Convert the SuperMicro date to ISO 8601 format
+		// Example: `Mar 21 00:00:00 2018 GMT` to `2018-03-21`
+		dateComponents := strings.Split(date, " ")
+		month := monthMap[dateComponents[0]]
+		day := dateComponents[1]
+		year := dateComponents[3]
+
+		// Return the date YYYYY-MM-DD
+		return year + "-" + month + "-" + day
+		}
+}
+
